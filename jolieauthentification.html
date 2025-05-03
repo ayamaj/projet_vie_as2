@@ -1,0 +1,405 @@
+<?php
+session_start();
+
+// Empêcher la mise en cache
+header("Cache-Control: no-cache, no-store, must-revalidate");
+header("Pragma: no-cache");
+header("Expires: 0");
+
+// Vérifier si l'utilisateur est déjà connecté
+if (isset($_SESSION['admin_logged_in'])) {
+    header('Location: admin_dashboard.php');
+    exit;
+}
+
+// Connexion à la base de données
+$servername = "localhost";
+$username = "root";
+$password = "";
+$dbname = "aya";
+
+$conn = new mysqli($servername, $username, $password, $dbname);
+
+if ($conn->connect_error) {
+    die("Connection failed: " . $conn->connect_error);
+}
+
+$error_message = "";
+
+// Traitement du formulaire de connexion
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $admin_username = trim($_POST['username']);
+    $admin_password = trim($_POST['password']);
+
+    // Requête pour vérifier les identifiants
+    $stmt = $conn->prepare("SELECT id, password FROM admin WHERE username = ?");
+    $stmt->bind_param("s", $admin_username);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    if ($result->num_rows == 1) {
+        $admin = $result->fetch_assoc();
+        
+        if ($admin_password === $admin['password']) {
+            $_SESSION['admin_logged_in'] = true;
+            $_SESSION['admin_id'] = $admin['id'];
+            header('Location: admin_dashboard.php');
+            exit;
+        } else {
+            $error_message = "Identifiants incorrects";
+        }
+    } else {
+        $error_message = "Identifiants incorrects";
+    }
+    
+    $stmt->close();
+}
+
+$conn->close();
+?>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connexion Admin - Gardiens de l'océan</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --ocean-deep: #0a2463;
+            --ocean-medium: #3e5c76;
+            --ocean-light: #d1e3ff;
+            --coral: #ff6b6b;
+            --seafoam: #7bdff2;
+            --white: #ffffff;
+            --gradient-blue: linear-gradient(135deg, #1a4b8c 0%, #3e5c76 100%);
+        }
+
+        body {
+            background: var(--ocean-light);
+            font-family: 'Poppins', sans-serif;
+            height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .login-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            position: relative;
+        }
+
+        .ocean-bg {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 30vh;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320"><path fill="%230a2463" fill-opacity="0.1" d="M0,192L48,197.3C96,203,192,213,288,229.3C384,245,480,267,576,250.7C672,235,768,181,864,181.3C960,181,1056,235,1152,234.7C1248,235,1344,181,1392,154.7L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path></svg>') repeat-x;
+            background-size: cover;
+            z-index: 0;
+        }
+
+        .login-card {
+            width: 100%;
+            max-width: 450px;
+            border: none;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 15px 30px rgba(10, 36, 99, 0.2);
+            z-index: 1;
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .login-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(10, 36, 99, 0.3);
+        }
+
+        .card-header {
+            background: var(--gradient-blue);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 70%);
+            transform: rotate(30deg);
+            animation: shine 6s infinite linear;
+        }
+
+        @keyframes shine {
+            0% { transform: rotate(30deg) translate(-30%, -30%); }
+            100% { transform: rotate(30deg) translate(30%, 30%); }
+        }
+
+        .brand-logo {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            width: 80px;
+            height: 80px;
+            line-height: 80px;
+            border-radius: 50%;
+            backdrop-filter: blur(5px);
+        }
+
+        .card-body {
+            padding: 2.5rem;
+            background: var(--white);
+        }
+
+        .form-control {
+            border-radius: 10px;
+            padding: 12px 20px;
+            border: 2px solid #e0e8f5;
+            transition: all 0.3s;
+        }
+
+        .form-control:focus {
+            border-color: var(--ocean-medium);
+            box-shadow: 0 0 0 0.25rem rgba(62, 92, 118, 0.15);
+        }
+
+        .input-group-text {
+            background: var(--ocean-light);
+            border: none;
+            color: var(--ocean-deep);
+        }
+
+        .btn-login {
+            background: var(--gradient-blue);
+            border: none;
+            border-radius: 10px;
+            padding: 12px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(10, 36, 99, 0.3);
+        }
+
+        .btn-login::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0) 70%);
+            transform: rotate(30deg);
+            transition: all 0.5s;
+            opacity: 0;
+        }
+
+        .btn-login:hover::after {
+            opacity: 1;
+            animation: shine 1.5s infinite linear;
+        }
+
+        .floating {
+            animation: floating 3s ease-in-out infinite;
+        }
+
+        @keyframes floating {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+
+        .bubbles {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            overflow: hidden;
+            top: 0;
+            left: 0;
+        }
+
+        .bubble {
+            position: absolute;
+            bottom: -100px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            animation: rise 10s infinite ease-in;
+        }
+
+        .bubble:nth-child(1) {
+            width: 40px;
+            height: 40px;
+            left: 10%;
+            animation-duration: 8s;
+        }
+
+        .bubble:nth-child(2) {
+            width: 20px;
+            height: 20px;
+            left: 20%;
+            animation-duration: 5s;
+            animation-delay: 1s;
+        }
+
+        .bubble:nth-child(3) {
+            width: 50px;
+            height: 50px;
+            left: 35%;
+            animation-duration: 7s;
+            animation-delay: 2s;
+        }
+
+        .bubble:nth-child(4) {
+            width: 30px;
+            height: 30px;
+            left: 50%;
+            animation-duration: 6s;
+            animation-delay: 0s;
+        }
+
+        .bubble:nth-child(5) {
+            width: 25px;
+            height: 25px;
+            left: 65%;
+            animation-duration: 9s;
+            animation-delay: 3s;
+        }
+
+        .bubble:nth-child(6) {
+            width: 45px;
+            height: 45px;
+            left: 80%;
+            animation-duration: 6s;
+            animation-delay: 2s;
+        }
+
+        @keyframes rise {
+            0% {
+                bottom: -100px;
+                transform: translateX(0);
+            }
+            50% {
+                transform: translateX(100px);
+            }
+            100% {
+                bottom: 1080px;
+                transform: translateX(-200px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-wrapper">
+        <!-- Bulles animées en arrière-plan -->
+        <div class="bubbles">
+            <div class="bubble"></div>
+            <div class="bubble"></div>
+            <div class="bubble"></div>
+            <div class="bubble"></div>
+            <div class="bubble"></div>
+            <div class="bubble"></div>
+        </div>
+
+        <div class="login-card animate__animated animate__fadeInUp">
+            <div class="card-header">
+                <div class="brand-logo floating">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <h2 class="mb-0">Gardiens de l'océan</h2>
+                <p class="mb-0">Espace Administrateur</p>
+            </div>
+            
+            <div class="card-body">
+                <?php if (!empty($error_message)): ?>
+                    <div class="alert alert-danger alert-dismissible fade show animate__animated animate__shakeX" role="alert">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        <?php echo $error_message; ?>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                <?php endif; ?>
+                
+                <form method="POST" action="admin_login.php" class="needs-validation" novalidate>
+                    <div class="mb-4">
+                        <label for="username" class="form-label">Nom d'utilisateur</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-user"></i></span>
+                            <input type="text" class="form-control" id="username" name="username" placeholder="Votre identifiant" required>
+                            <div class="invalid-feedback">
+                                Veuillez entrer votre nom d'utilisateur.
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="password" class="form-label">Mot de passe</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                            <input type="password" class="form-control" id="password" name="password" placeholder="Votre mot de passe" required>
+                            <div class="invalid-feedback">
+                                Veuillez entrer votre mot de passe.
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary btn-login">
+                            <i class="fas fa-sign-in-alt me-2"></i> Connexion
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="ocean-bg"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Validation Bootstrap
+        (function () {
+            'use strict'
+            
+            var forms = document.querySelectorAll('.needs-validation')
+            
+            Array.prototype.slice.call(forms)
+                .forEach(function (form) {
+                    form.addEventListener('submit', function (event) {
+                        if (!form.checkValidity()) {
+                            event.preventDefault()
+                            event.stopPropagation()
+                        }
+                        
+                        form.classList.add('was-validated')
+                    }, false)
+                })
+        })()
+        
+        // Animation des bulles
+        document.addEventListener('DOMContentLoaded', function() {
+            const bubbles = document.querySelectorAll('.bubble');
+            bubbles.forEach(bubble => {
+                bubble.style.left = Math.random() * 100 + '%';
+                bubble.style.animationDuration = (5 + Math.random() * 10) + 's';
+                bubble.style.animationDelay = Math.random() * 5 + 's';
+            });
+        });
+    </script>
+</body>
+</html>
